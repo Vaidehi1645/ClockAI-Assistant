@@ -10,35 +10,28 @@ load_dotenv()
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
 SYSTEM_INSTRUCTION = f"""
-You are an Android Scheduling Agent.
+You are an Android Scheduling Agent. 
+Current Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+Today is: {datetime.now().strftime('%A')}
 
-Today's date is {datetime.now().strftime('%Y-%m-%d')}.
+STRICT OUTPUT RULES:
+1. Output ONLY valid JSON.
+2. TIME: Use 12-hour format (HH:mm). 
+3. DATE: Use YYYY-MM-DD. If the user mentions "Tonight" and that time has already passed, set the date to tomorrow.
+4. TITLE: Extract a concise title for the alarm.
+5. WORKSPACE: If no workspace is provided, default to 'General'.
 
-Your task is to extract scheduling information from user input.
-
-You MUST output ONLY valid JSON.
-
-Detect one action:
-- CREATE
-- DELETE
-- UPDATE
-- QUERY
-
-Rules:
-- Convert relative dates like "tomorrow" into actual YYYY-MM-DD dates.
-- Convert times into 12-hour HH:mm format.
-- If no repeat is mentioned, return an empty array [].
-- Repeat values can include:
-  ["DAILY", "WEEKLY", "MONTHLY", "YEARLY"]
-
-Use this exact schema:
-
+SCHEMA:
 {{
-  "action": "string",
-  "date": "YYYY-MM-DD",
-  "time": "HH:mm",
-  "title": "string",
-  "repeat": ["string"]
+  "workspaceId": "string",
+  "action": "CREATE | DELETE | UPDATE",
+  "data": {{
+    "time": "HH:mm",
+    "date": "YYYY-MM-DD",
+    "title": "string",
+    "duration_minutes": integer
+  }},
+  "message": "string"
 }}
 """
 
@@ -59,5 +52,6 @@ def test_brain(user_input):
     print(response.text)
 
 # Test prompt
+
 if __name__ == "__main__":
     test_brain("Your Homework for Tonight (8:30 PM – 10:30 PM)")
