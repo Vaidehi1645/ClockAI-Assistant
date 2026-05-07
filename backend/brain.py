@@ -66,10 +66,10 @@ def supervisor_check(new_tasks):
             
     return final_tasks, conflicts
 
-def run_ai_agent(user_input):
+def run_ai_agent(workspace, user_input):
     # 1. AI Extraction
     response = model.generate_content(
-        user_input,
+        f"Workspace: {workspace}. {user_input}",
         generation_config={"response_mime_type": "application/json"}
     )
     
@@ -102,5 +102,4 @@ def run_ai_agent(user_input):
     return clean_tasks
 
 if __name__ == "__main__":
-    # Test a conflict scenario
-    run_ai_agent("Gym at 7am tomorrow, and an office meeting at 10am")
+    run_ai_agent("General", "Gym at 7am tomorrow, and an office meeting at 10am")

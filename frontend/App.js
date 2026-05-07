@@ -8,36 +8,33 @@ const API_URL = "http://192.168.0.89:8000/process";
 
 export default function App() {
   const [input, setInput] = useState('');
+  const [workspace, setWorkspace] = useState('General');
   const [messages, setMessages] = useState([
     { role: 'bot', text: "Hello! I'm your AI Clock. Which workspace are we in today?" }
   ]);
-
   const handleSend = async () => {
     if (!input.trim()) return;
-
-    // Add user message to UI
-    const newMessages = [...messages, { role: 'user', text: input }];
-    setMessages(newMessages);
+    setMessages(prev => [...prev, { role: 'user', text: input }]);
     setInput('');
 
     try {
-      const response = await axios.post(API_URL, { text: input });
-      const tasks = response.data.tasks;
+      const response = await axios.post(API_URL, { text: input, workspace: workspace });
+      const { tasks } = response.data;
 
-      // Handle the AI response
-      if (tasks && tasks.length > 0) {
+      // If the AI returned a string instead of a task list, it's likely a conflict warning
+      if (typeof tasks === 'string') {
+        setMessages(prev => [...prev, { role: 'bot', text: `⚠️ ${tasks}` }]);
+      } 
+      else if (tasks && tasks.length > 0) {
         tasks.forEach(task => {
           setMessages(prev => [...prev, { 
             role: 'bot', 
-            text: `✅ Scheduled: ${task.data.title} for ${task.data.time}` 
+            text: `📍 [${workspace}] Scheduled: ${task.data.title} at ${task.data.time}` 
           }]);
         });
-      } else {
-        setMessages(prev => [...prev, { role: 'bot', text: "Got it, I've updated your schedule." }]);
       }
     } catch (error) {
-      console.error(error);
-      setMessages(prev => [...prev, { role: 'bot', text: "⚠️ Error connecting to the brain." }]);
+      setMessages(prev => [...prev, { role: 'bot', text: "⚠️ Connection lost." }]);
     }
   };
 

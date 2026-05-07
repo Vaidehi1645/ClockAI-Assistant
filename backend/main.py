@@ -6,6 +6,7 @@ app = FastAPI()
 
 class UserQuery(BaseModel):
     text: str
+    workspace: str = "General"  # Default workspace
 
 @app.get("/")
 def home():
@@ -13,8 +14,7 @@ def home():
 
 @app.post("/process")
 def process_text(query: UserQuery):
-    # This calls your AI and Database logic
-    result = run_ai_agent(query.text)
+    result = run_ai_agent(query.workspace, query.text)
     return {"tasks": result}
 
 if __name__ == "__main__":
