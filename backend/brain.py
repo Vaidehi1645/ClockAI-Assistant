@@ -3,6 +3,7 @@ import os
 import json
 from datetime import datetime
 from dotenv import load_dotenv
+from database import get_existing_schedules, add_schedule # Import our new helpers
 
 load_dotenv()
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
@@ -49,11 +50,12 @@ def supervisor_check(new_tasks):
     conflicts = []
     
     for task in new_tasks:
-        # Conflict check logic
+        # REAL DB CHECK: Get schedules for the specific date the AI extracted
+        db_schedules = get_existing_schedules(task['data']['date'])
+        
         is_conflict = any(
-            item['time'] == task['data']['time'] and 
-            item['date'] == task['data']['date'] 
-            for item in EXISTING_SCHEDULE
+            item['time'] == task['data']['time']
+            for item in db_schedules
         )
         
         if is_conflict:
@@ -85,8 +87,17 @@ def run_ai_agent(user_input):
     
     if clean_tasks:
         for t in clean_tasks:
-            print(f"✅ READY TO SYNC: {t['data']['title']} for {t['data']['date']} at {t['data']['time']}")
-    
+            # SAVE TO DATABASE
+            success = add_schedule(
+                t['workspaceId'], 
+                t['data']['title'], 
+                t['data']['date'], 
+                t['data']['time'], 
+                t['data']['duration_minutes']
+            )
+            if success:
+                print(f"✅ SAVED TO DB: {t['data']['title']} at {t['data']['time']}")
+                
     return clean_tasks
 
 if __name__ == "__main__":
