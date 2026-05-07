@@ -51,7 +51,8 @@ def supervisor_check(new_tasks):
     
     for task in new_tasks:
         # REAL DB CHECK: Get schedules for the specific date the AI extracted
-        db_schedules = get_existing_schedules(task['data']['date'])
+        task_date = task['data'].get('date') or task['data'].get('day') or "today"
+        db_schedules = get_existing_schedules(task_date)
         
         is_conflict = any(
             item['time'] == task['data']['time']
@@ -97,7 +98,7 @@ def run_ai_agent(user_input):
             )
             if success:
                 print(f"✅ SAVED TO DB: {t['data']['title']} at {t['data']['time']}")
-                
+
     return clean_tasks
 
 if __name__ == "__main__":
