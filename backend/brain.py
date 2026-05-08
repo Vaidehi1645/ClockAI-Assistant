@@ -45,14 +45,13 @@ model = genai.GenerativeModel(
     system_instruction=SYSTEM_INSTRUCTION
 )
 
-def supervisor_check(new_tasks):
+def supervisor_check(workspace, new_tasks):
     final_tasks = []
     conflicts = []
     
     for task in new_tasks:
-        # REAL DB CHECK: Get schedules for the specific date the AI extracted
         task_date = task['data'].get('date') or task['data'].get('day') or "today"
-        db_schedules = get_existing_schedules(task_date)
+        db_schedules = get_existing_schedules(task_date, workspace)
         
         is_conflict = any(
             item['time'] == task['data']['time']
@@ -76,21 +75,18 @@ def run_ai_agent(workspace, user_input):
     # 2. Parse AI JSON
     extracted_tasks = json.loads(response.text)
     
-    # 3. Supervisor Validation
-    clean_tasks, messy_conflicts = supervisor_check(extracted_tasks)
+    clean_tasks, messy_conflicts = supervisor_check(workspace, extracted_tasks)
     
     # 4. Final Output/Action
     print(f"--- PROCESSING: '{user_input}' ---")
     if messy_conflicts:
         for c in messy_conflicts:
             print(f"⚠️ CONFLICT: '{c['data']['title']}' at {c['data']['time']} is already taken!")
-            # Proactive Suggestion Logic could go here later
     
     if clean_tasks:
         for t in clean_tasks:
-            # SAVE TO DATABASE
             success = add_schedule(
-                t['workspaceId'], 
+                workspace, 
                 t['data']['title'], 
                 t['data']['date'], 
                 t['data']['time'], 

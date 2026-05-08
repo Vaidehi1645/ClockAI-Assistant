@@ -4,44 +4,72 @@ import axios from 'axios';
 
 // IMPORTANT: Replace with your COMPUTER'S IP ADDRESS (e.g., 192.168.1.5)
 // Do not use 'localhost' as the Android emulator/phone won't see it.
-const API_URL = "http://192.168.0.89:8000/process";
+const API_URL = "http://192.168.85.197:8000/process";
+
+const workspaces = ['Uni', 'Internship', 'Home'];
 
 export default function App() {
   const [input, setInput] = useState('');
-  const [workspace, setWorkspace] = useState('General');
+  const [workspace, setWorkspace] = useState('Uni');
   const [messages, setMessages] = useState([
     { role: 'bot', text: "Hello! I'm your AI Clock. Which workspace are we in today?" }
   ]);
+
   const handleSend = async () => {
-    if (!input.trim()) return;
-    setMessages(prev => [...prev, { role: 'user', text: input }]);
-    setInput('');
+  if (!input.trim()) return;
+  
+  // 1. Add user message to UI immediately
+  setMessages(prev => [...prev, { role: 'user', text: input }]);
+  setInput('');
 
-    try {
-      const response = await axios.post(API_URL, { text: input, workspace: workspace });
-      const { tasks } = response.data;
+  try {
+    const response = await axios.post(API_URL, { 
+      text: input, 
+      workspace: workspace 
+    });
 
-      // If the AI returned a string instead of a task list, it's likely a conflict warning
-      if (typeof tasks === 'string') {
-        setMessages(prev => [...prev, { role: 'bot', text: `⚠️ ${tasks}` }]);
-      } 
-      else if (tasks && tasks.length > 0) {
-        tasks.forEach(task => {
-          setMessages(prev => [...prev, { 
-            role: 'bot', 
-            text: `📍 [${workspace}] Scheduled: ${task.data.title} at ${task.data.time}` 
-          }]);
+    const responseData = response.data;
+    const tasks = responseData.tasks || responseData.message || responseData;
+    let newMessages = [];
+
+    if (typeof tasks === 'string' && tasks) {
+      newMessages.push({ role: 'bot', text: `⚠️ ${tasks}` });
+    } else if (Array.isArray(tasks) && tasks.length > 0) {
+      tasks.forEach(task => {
+        newMessages.push({ 
+          role: 'bot', 
+          text: `✅ [${workspace}] Scheduled: ${task.data.title} at ${task.data.time}` 
         });
-      }
-    } catch (error) {
-      setMessages(prev => [...prev, { role: 'bot', text: "⚠️ Connection lost." }]);
+      });
+    } else {
+      newMessages.push({ role: 'bot', text: "✅ No tasks scheduled." });
     }
-  };
+
+    setMessages(prev => [...prev, ...newMessages]);
+  } catch (error) {
+    console.error(error);
+    setMessages(prev => [...prev, { role: 'bot', text: "⚠️ Brain is offline." }]);
+  }
+};
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>ClockAI Assistant</Text>
+      </View>
+
+      <View style={styles.workspaceSelector}>
+        {workspaces.map((ws) => (
+          <TouchableOpacity
+            key={ws}
+            style={[styles.workspaceBtn, workspace === ws && styles.workspaceBtnActive]}
+            onPress={() => setWorkspace(ws)}
+          >
+            <Text style={[styles.workspaceBtnText, workspace === ws && styles.workspaceBtnTextActive]}>
+              {ws}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </View>
 
       <ScrollView style={styles.chatBox}>
@@ -68,16 +96,21 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f4f7f6' },
-  header: { padding: 20, backgroundColor: '#2c3e50', alignItems: 'center' },
-  headerTitle: { color: 'white', fontSize: 18, fontWeight: 'bold' },
+  container: { flex: 1, backgroundColor: '#FAF9F6' },
+  header: { padding: 20, backgroundColor: '#FAF9F6', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#E0DED8' },
+  headerTitle: { color: '#5A5A5A', fontSize: 22, fontWeight: '300', letterSpacing: 3 },
+  workspaceSelector: { flexDirection: 'row', justifyContent: 'center', paddingVertical: 12, gap: 10 },
+  workspaceBtn: { paddingHorizontal: 20, paddingVertical: 8, borderRadius: 20, backgroundColor: '#E8E6E1' },
+  workspaceBtnActive: { backgroundColor: '#8E9775' },
+  workspaceBtnText: { color: '#8E9775', fontWeight: '500', fontSize: 14 },
+  workspaceBtnTextActive: { color: '#FAF9F6' },
   chatBox: { flex: 1, padding: 15 },
   msgBubble: { padding: 12, borderRadius: 15, marginBottom: 10, maxWidth: '80%' },
-  userBubble: { alignSelf: 'flex-end', backgroundColor: '#3498db' },
-  botBubble: { alignSelf: 'flex-start', backgroundColor: '#ecf0f1' },
-  msgText: { fontSize: 16 },
-  inputArea: { flexDirection: 'row', padding: 15, borderTopWidth: 1, borderColor: '#ddd' },
-  input: { flex: 1, backgroundColor: 'white', borderRadius: 20, paddingHorizontal: 15, height: 40 },
-  sendBtn: { marginLeft: 10, justifyContent: 'center', backgroundColor: '#2c3e50', borderRadius: 20, paddingHorizontal: 20 },
-  sendText: { color: 'white', fontWeight: 'bold' }
+  userBubble: { alignSelf: 'flex-end', backgroundColor: '#8E9775' },
+  botBubble: { alignSelf: 'flex-start', backgroundColor: '#E8E6E1' },
+  msgText: { fontSize: 15, fontWeight: '300', color: '#5A5A5A' },
+  inputArea: { flexDirection: 'row', padding: 15, borderTopWidth: 1, borderTopColor: '#E0DED8' },
+  input: { flex: 1, backgroundColor: 'white', borderRadius: 20, paddingHorizontal: 15, height: 40, borderWidth: 1, borderColor: '#E0DED8' },
+  sendBtn: { marginLeft: 10, justifyContent: 'center', backgroundColor: '#8E9775', borderRadius: 20, paddingHorizontal: 20 },
+  sendText: { color: '#FAF9F6', fontWeight: '500' }
 });

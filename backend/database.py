@@ -35,14 +35,14 @@ if __name__ == "__main__":
     init_db()
 
 
-def get_existing_schedules(date):
-    """Fetch all schedules for a specific date to check for conflicts."""
+def get_existing_schedules(date, workspace_id):
+    """Fetch schedules for a specific date AND workspace."""
     conn = sqlite3.connect('clock_ai.db')
     cursor = conn.cursor()
-    cursor.execute("SELECT time, title FROM schedules WHERE date = ?", (date,))
+    # Adding workspace_id to the query ensures isolation
+    cursor.execute("SELECT time, title FROM schedules WHERE date = ? AND workspace_id = ?", (date, workspace_id))
     rows = cursor.fetchall()
     conn.close()
-    # Convert to list of dicts to match our Brain logic
     return [{"time": row[0], "title": row[1]} for row in rows]
 
 def add_schedule(workspace_id, title, date, time, duration):
