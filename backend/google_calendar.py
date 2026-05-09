@@ -64,8 +64,9 @@ def create_calendar_event(title, date_str, time_str, duration_minutes=30, descri
             "reminders": {
                 "useDefault": False,
                 "overrides": [
-                    {"method": "popup", "minutes": 30},
-                    {"method": "email", "minutes": 60}
+                    {"method": "popup", "minutes": 0},
+                    {"method": "popup", "minutes": 10},
+                    {"method": "popup", "minutes": 30}
                 ]
             }
         }
