@@ -27,4 +27,4 @@ def process_text(query: UserQuery):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="192.168.236.46", port=8000)
+    uvicorn.run(app, host="192.168.0.89", port=8000)

@@ -5,6 +5,7 @@ import re
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from database import get_existing_schedules, get_all_schedules, add_schedule, init_db
+from google_calendar import create_calendar_event
 
 load_dotenv()
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
@@ -206,6 +207,17 @@ def run_ai_agent(workspace, user_input):
                     )
                     if success:
                         print(f"SAVED TO DB: {title} at {time_val}")
+                        
+                        calendar_result = create_calendar_event(
+                            title, 
+                            date_val, 
+                            time_val, 
+                            duration_val,
+                            f"Workspace: {workspace}"
+                        )
+                        if calendar_result:
+                            print(f"GCal: Event created - {calendar_result.get('htmlLink', '')}")
+                        
                         saved_tasks.append(t)
         
         if saved_tasks:

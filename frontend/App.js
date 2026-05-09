@@ -1,22 +1,24 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView, SafeAreaView, Alert, Platform, Linking } from 'react-native';
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView, SafeAreaView, Alert, Platform, Linking, KeyboardAvoidingView, Platform as RNPlatform } from 'react-native';
 import axios from 'axios';
 
-const API_URL = "http://192.168.236.46:8000/process";
+const API_URL = "http://192.168.0.89:8000/process";
 
 const setAndroidAlarm = (time, title) => {
-  if (Platform.OS !== 'android') {
-    Alert.alert("Alarm", `${title} scheduled at ${time} (Android only)`);
-    return;
-  }
+  if (Platform.OS !== 'android') return;
   
   const [hours, minutes] = time.split(':').map(Number);
   
-  const intentUrl = `intent://alarm_android/set_alarm?hour=${hours}&minutes=${minutes}&message=${encodeURIComponent(title)}#Intent;scheme=alarm;package=com.android.deskclock;end`;
-  
-  Linking.openURL(intentUrl).catch(() => {
-    Alert.alert("Set Alarm", `Would set alarm for ${title} at ${time}`);
-  });
+  try {
+    const androidPkg = "com.android.deskclock";
+    const intentUrl = `intent://alarmclock?hour=${hours}&minutes=${minutes}&message=${encodeURIComponent(title)}&show_actions=true#Intent;package=${androidPkg}`;
+    
+    Linking.openURL(intentUrl).catch(() => {
+      Alert.alert("Manual Set", `Open Clock app and set ${title} at ${time}`);
+    });
+  } catch (e) {
+    Alert.alert("Note", `Schedule saved. Set alarm manually for ${time}`);
+  }
 };
 
 const workspaces = ['Uni', 'Internship', 'Home'];
@@ -183,74 +185,81 @@ export default function App() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={resetChat} style={styles.newChatBtn}>
-          <Text style={styles.newChatText}>+ New Chat</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>ClockAI</Text>
-        <View style={{width: 60}} />
-      </View>
-
-      <View style={styles.workspaceSelector}>
-        {workspaces.map((ws) => (
-          <TouchableOpacity
-            key={ws}
-            style={[styles.workspaceBtn, workspace === ws && styles.workspaceBtnActive]}
-            onPress={() => handleWorkspaceChange(ws)}
-          >
-            <Text style={[styles.workspaceBtnText, workspace === ws && styles.workspaceBtnTextActive]}>
-              {ws}
-            </Text>
+      <KeyboardAvoidingView 
+        behavior={RNPlatform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardView}
+        keyboardVerticalOffset={0}
+      >
+        <View style={styles.header}>
+          <TouchableOpacity onPress={resetChat} style={styles.newChatBtn}>
+            <Text style={styles.newChatText}>+ New Chat</Text>
           </TouchableOpacity>
-        ))}
-      </View>
+          <Text style={styles.headerTitle}>ClockAI</Text>
+          <View style={{width: 60}} />
+        </View>
 
-      <ScrollView style={styles.chatBox}>
-        {currentMessages.map((m, i) => (
-          <View key={i} style={[
-            styles.msgBubble, 
-            m.role === 'user' ? styles.userBubble : 
-            m.isConflict ? styles.conflictBubble : styles.botBubble
-          ]}>
-            <Text style={styles.msgText}>{m.text}</Text>
-            {m.isConflict && m.pendingTask && (
-              <View style={styles.conflictButtons}>
-                <TouchableOpacity 
-                  style={[styles.conflictBtn, {backgroundColor: '#8E9775'}]}
-                  onPress={() => handleOverride(m.pendingTask, workspace)}
-                >
-                  <Text style={styles.conflictBtnText}>Override</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={[styles.conflictBtn, {backgroundColor: '#A0A0A0'}]}
-                  onPress={() => handleScheduleAnyway(m.pendingTask, workspace)}
-                >
-                  <Text style={styles.conflictBtnText}>Schedule Anyway</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-        ))}
-      </ScrollView>
+        <View style={styles.workspaceSelector}>
+          {workspaces.map((ws) => (
+            <TouchableOpacity
+              key={ws}
+              style={[styles.workspaceBtn, workspace === ws && styles.workspaceBtnActive]}
+              onPress={() => handleWorkspaceChange(ws)}
+            >
+              <Text style={[styles.workspaceBtnText, workspace === ws && styles.workspaceBtnTextActive]}>
+                {ws}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
 
-      <View style={styles.inputArea}>
-        <TextInput 
-          style={styles.input} 
-          value={input} 
-          onChangeText={setInput} 
-          placeholder={`Message ${workspace}...`}
-          placeholderTextColor="#999"
-        />
-        <TouchableOpacity style={styles.sendBtn} onPress={handleSend}>
-          <Text style={styles.sendText}>Send</Text>
-        </TouchableOpacity>
-      </View>
+        <ScrollView style={styles.chatBox} keyboardShouldPersistTaps="handled">
+          {currentMessages.map((m, i) => (
+            <View key={i} style={[
+              styles.msgBubble, 
+              m.role === 'user' ? styles.userBubble : 
+              m.isConflict ? styles.conflictBubble : styles.botBubble
+            ]}>
+              <Text style={styles.msgText}>{m.text}</Text>
+              {m.isConflict && m.pendingTask && (
+                <View style={styles.conflictButtons}>
+                  <TouchableOpacity 
+                    style={[styles.conflictBtn, {backgroundColor: '#8E9775'}]}
+                    onPress={() => handleOverride(m.pendingTask, workspace)}
+                  >
+                    <Text style={styles.conflictBtnText}>Override</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[styles.conflictBtn, {backgroundColor: '#A0A0A0'}]}
+                    onPress={() => handleScheduleAnyway(m.pendingTask, workspace)}
+                  >
+                    <Text style={styles.conflictBtnText}>Schedule Anyway</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          ))}
+        </ScrollView>
+
+        <View style={styles.inputArea}>
+          <TextInput 
+            style={styles.input} 
+            value={input} 
+            onChangeText={setInput} 
+            placeholder={`Message ${workspace}...`}
+            placeholderTextColor="#999"
+          />
+          <TouchableOpacity style={styles.sendBtn} onPress={handleSend}>
+            <Text style={styles.sendText}>Send</Text>
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FAF9F6' },
+  keyboardView: { flex: 1 },
   header: { padding: 15, paddingTop: 10, backgroundColor: '#FAF9F6', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#E0DED8', flexDirection: 'row', justifyContent: 'space-between' },
   headerTitle: { color: '#5A5A5A', fontSize: 22, fontWeight: '300', letterSpacing: 3 },
   newChatBtn: { backgroundColor: '#8E9775', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 15 },
