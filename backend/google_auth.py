@@ -9,7 +9,7 @@ load_dotenv()
 
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
-REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "http://192.168.0.89:8001/auth/callback")
+REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:3000/auth/google/callback")
 TOKEN_FILE = os.path.join(os.path.dirname(__file__), "google_token.json")
 
 class Handler(BaseHTTPRequestHandler):
@@ -22,7 +22,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header('Location', auth_url)
             self.end_headers()
             
-        elif parsed.path == "/auth/callback":
+        elif parsed.path == "/auth/google/callback":
             code = parse_qs(parsed.query).get('code', [None])[0]
             if code:
                 token_response = requests.post('https://oauth2.googleapis.com/token', data={
@@ -54,8 +54,8 @@ class Handler(BaseHTTPRequestHandler):
         pass
 
 def start_auth_server():
-    server = HTTPServer(('0.0.0.0', 8001), Handler)
-    print("Google Auth Server running on http://192.168.0.89:8001/auth")
+    server = HTTPServer(('0.0.0.0', 3000), Handler)
+    print("Google Auth Server running on http://localhost:3000/auth")
     print("Open this URL in browser to connect Google Calendar")
     server.serve_forever()
 
