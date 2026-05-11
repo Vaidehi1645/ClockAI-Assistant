@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView, SafeAreaView, Alert, Platform, Linking, KeyboardAvoidingView, Platform as RNPlatform } from 'react-native';
 import axios from 'axios';
 
 const API_URL = "http://192.168.85.22:8000/process";
+const API_BASE = "http://192.168.85.22:8000";
 
 const setAndroidAlarm = (time, title) => {
   if (Platform.OS !== 'android') return;
@@ -35,6 +36,26 @@ export default function App() {
   const [showAddWorkspace, setShowAddWorkspace] = useState(false);
   const [newWorkspaceName, setNewWorkspaceName] = useState('');
   const [toast, setToast] = useState(null);
+
+  useEffect(() => {
+    const fetchWorkspaces = async () => {
+      try {
+        const response = await axios.get(`${API_BASE}/workspaces`);
+        const backendWorkspaces = response.data.map(w => w.name);
+        const defaultWorkspaces = ['Uni', 'Internship', 'Home'];
+        const allWorkspaces = [...new Set([...defaultWorkspaces, ...backendWorkspaces])];
+        setWorkspaces(allWorkspaces);
+        Object.keys(initialMessages).forEach(key => {
+          if (!initialMessages[key]) {
+            initialMessages[key] = [{ role: 'bot', text: `Switched to ${key} workspace. What would you like to schedule?` }];
+          }
+        });
+      } catch (e) {
+        console.log("Using default workspaces");
+      }
+    };
+    fetchWorkspaces();
+  }, []);
 
   const showToast = (message) => {
     setToast(message);
@@ -94,7 +115,12 @@ export default function App() {
         { 
           text: 'Delete', 
           style: 'destructive',
-          onPress: () => {
+          onPress: async () => {
+            try {
+              await axios.delete(`${API_BASE}/workspaces/${wsName}`);
+            } catch (e) {
+              console.log("Failed to delete workspace from backend");
+            }
             const remainingWorkspaces = workspaces.filter(w => w !== wsName);
             setWorkspaces(remainingWorkspaces);
             setMessages(prev => {

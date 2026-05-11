@@ -121,3 +121,26 @@ def get_suggested_resolution(pattern):
     result = cursor.fetchone()
     conn.close()
     return result[0] if result else None
+
+def get_workspaces():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, name FROM workspaces")
+    rows = cursor.fetchall()
+    conn.close()
+    return [{"id": row[0], "name": row[1]} for row in rows]
+
+def add_workspace(workspace_id, name):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("INSERT OR IGNORE INTO workspaces (id, name) VALUES (?, ?)", (workspace_id, name))
+    conn.commit()
+    conn.close()
+
+def delete_workspace(workspace_id):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM schedules WHERE workspace_id = ?", (workspace_id,))
+    cursor.execute("DELETE FROM workspaces WHERE id = ?", (workspace_id,))
+    conn.commit()
+    conn.close()
