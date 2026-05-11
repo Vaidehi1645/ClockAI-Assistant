@@ -34,6 +34,12 @@ export default function App() {
   const [workspaces, setWorkspaces] = useState(['Uni', 'Internship', 'Home']);
   const [showAddWorkspace, setShowAddWorkspace] = useState(false);
   const [newWorkspaceName, setNewWorkspaceName] = useState('');
+  const [toast, setToast] = useState(null);
+
+  const showToast = (message) => {
+    setToast(message);
+    setTimeout(() => setToast(null), 2000);
+  };
 
   const currentMessages = messages[workspace];
 
@@ -77,6 +83,33 @@ export default function App() {
     setWorkspace(trimmedName);
     setNewWorkspaceName('');
     setShowAddWorkspace(false);
+  };
+
+  const handleDeleteWorkspace = (wsName) => {
+    Alert.alert(
+      'Delete Workspace',
+      `Are you sure you want to delete "${wsName}"?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Delete', 
+          style: 'destructive',
+          onPress: () => {
+            const remainingWorkspaces = workspaces.filter(w => w !== wsName);
+            setWorkspaces(remainingWorkspaces);
+            setMessages(prev => {
+              const newMessages = { ...prev };
+              delete newMessages[wsName];
+              return newMessages;
+            });
+            if (workspace === wsName) {
+              setWorkspace(remainingWorkspaces[0] || 'Uni');
+            }
+            showToast(`"${wsName}" deleted successfully`);
+          }
+        }
+      ]
+    );
   };
 
   const handleSend = async () => {
@@ -228,6 +261,7 @@ export default function App() {
                 key={ws}
                 style={[styles.workspaceBtn, workspace === ws && styles.workspaceBtnActive]}
                 onPress={() => handleWorkspaceChange(ws)}
+                onLongPress={() => handleDeleteWorkspace(ws)}
               >
                 <Text style={[styles.workspaceBtnText, workspace === ws && styles.workspaceBtnTextActive]}>
                   {ws}
@@ -305,6 +339,12 @@ export default function App() {
           </View>
         </View>
       )}
+
+      {toast && (
+        <View style={styles.toast}>
+          <Text style={styles.toastText}>{toast}</Text>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -345,5 +385,7 @@ const styles = StyleSheet.create({
   modalCancelBtn: { flex: 1, paddingVertical: 12, borderRadius: 10, backgroundColor: '#E8E6E1', alignItems: 'center' },
   modalCancelText: { color: '#5A5A5A', fontWeight: '500' },
   modalCreateBtn: { flex: 1, paddingVertical: 12, borderRadius: 10, backgroundColor: '#8E9775', alignItems: 'center' },
-  modalCreateText: { color: '#FAF9F6', fontWeight: '600' }
+  modalCreateText: { color: '#FAF9F6', fontWeight: '600' },
+  toast: { position: 'absolute', bottom: 100, left: 20, right: 20, backgroundColor: '#5A5A5A', borderRadius: 10, paddingVertical: 12, paddingHorizontal: 20, alignItems: 'center' },
+  toastText: { color: '#FAF9F6', fontSize: 14, fontWeight: '500' }
 });
