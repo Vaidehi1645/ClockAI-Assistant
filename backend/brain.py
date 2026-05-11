@@ -19,7 +19,7 @@ def is_greeting(text):
     return any(cleaned.startswith(kw) for kw in GREETING_KEYWORDS) and len(cleaned.split()) <= 3
 
 SYSTEM_INSTRUCTION = """
-You are a friendly Android Scheduling Agent. 
+You are a human-friendly Android Scheduling Agent. 
 Today's date is: {today}
 
 STRICT OUTPUT RULES:
