@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView, SafeAreaView, Alert, Platform, Linking, KeyboardAvoidingView, Platform as RNPlatform } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView, SafeAreaView, Alert, Platform, Linking, KeyboardAvoidingView, Platform as RNPlatform, Image, Modal, ActionSheetIOS } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import { Plus, Camera, Image as ImageIcon, X, Send } from 'lucide-react-native';
 import axios from 'axios';
 
 const API_URL = "http://192.168.85.22:8000/process";
@@ -36,6 +38,9 @@ export default function App() {
   const [showAddWorkspace, setShowAddWorkspace] = useState(false);
   const [newWorkspaceName, setNewWorkspaceName] = useState('');
   const [toast, setToast] = useState(null);
+  const [images, setImages] = useState([]);
+  const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
+  const scrollViewRef = useRef(null);
 
   useEffect(() => {
     const fetchWorkspaces = async () => {
@@ -60,6 +65,71 @@ export default function App() {
   const showToast = (message) => {
     setToast(message);
     setTimeout(() => setToast(null), 2000);
+  };
+
+  const requestPermissions = async () => {
+    const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync();
+    const { status: mediaStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (cameraStatus !== 'granted' || mediaStatus !== 'granted') {
+      Alert.alert('Permissions Needed', 'Please grant camera and photo library permissions to use this feature.');
+      return false;
+    }
+    return true;
+  };
+
+  const handleOpenCamera = async () => {
+    setShowAttachmentMenu(false);
+    const hasPermission = await requestPermissions();
+    if (!hasPermission) return;
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      const newImage = result.assets[0];
+      setImages(prev => [...prev, { uri: newImage.uri, type: 'camera' }]);
+    }
+  };
+
+  const handleOpenGallery = async () => {
+    setShowAttachmentMenu(false);
+    const hasPermission = await requestPermissions();
+    if (!hasPermission) return;
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsMultipleSelection: true,
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets.length > 0) {
+      const newImages = result.assets.map(asset => ({ uri: asset.uri, type: 'gallery' }));
+      setImages(prev => [...prev, ...newImages]);
+    }
+  };
+
+  const handleRemoveImage = (index) => {
+    setImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleAttachmentPress = () => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['Cancel', 'Camera', 'Photo Library'],
+          cancelButtonIndex: 0,
+        },
+        (buttonIndex) => {
+          if (buttonIndex === 1) handleOpenCamera();
+          if (buttonIndex === 2) handleOpenGallery();
+        }
+      );
+    } else {
+      setShowAttachmentMenu(true);
+    }
   };
 
   const currentMessages = messages[workspace];
@@ -139,7 +209,7 @@ export default function App() {
   };
 
   const handleSend = async () => {
-    if (!input.trim()) return;
+    if (!input.trim() && images.length === 0) return;
     
     if (input.includes('image://') || input.includes('photos')) {
       setMessages(prev => ({
@@ -149,11 +219,17 @@ export default function App() {
       return;
     }
     
+    const userMessage = { role: 'user', text: input };
+    if (images.length > 0) {
+      userMessage.images = images;
+    }
+    
     setMessages(prev => ({
       ...prev,
-      [workspace]: [...prev[workspace], { role: 'user', text: input }]
+      [workspace]: [...prev[workspace], userMessage]
     }));
     setInput('');
+    setImages([]);
 
     try {
       const response = await axios.post(API_URL, { 
@@ -300,14 +376,21 @@ export default function App() {
           </ScrollView>
         </View>
 
-        <ScrollView style={styles.chatBox} keyboardShouldPersistTaps="handled">
+        <ScrollView style={styles.chatBox} keyboardShouldPersistTaps="handled" ref={scrollViewRef}>
           {currentMessages.map((m, i) => (
             <View key={i} style={[
               styles.msgBubble, 
               m.role === 'user' ? styles.userBubble : 
               m.isConflict ? styles.conflictBubble : styles.botBubble
             ]}>
-              <Text style={styles.msgText}>{m.text}</Text>
+              {m.images && m.images.length > 0 && (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chatImageContainer}>
+                  {m.images.map((img, idx) => (
+                    <Image key={idx} source={{ uri: img.uri }} style={styles.chatImage} />
+                  ))}
+                </ScrollView>
+              )}
+              {m.text && <Text style={styles.msgText}>{m.text}</Text>}
               {m.isConflict && m.pendingTask && (
                 <View style={styles.conflictButtons}>
                   <TouchableOpacity 
@@ -329,15 +412,34 @@ export default function App() {
         </ScrollView>
 
         <View style={styles.inputArea}>
-          <TextInput 
-            style={styles.input} 
-            value={input} 
-            onChangeText={setInput} 
-            placeholder={`Message ${workspace}...`}
-            placeholderTextColor="#999"
-          />
+          <View style={styles.inputContainer}>
+            {images.length > 0 && (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imagePreviewContainer}>
+                {images.map((img, i) => (
+                  <View key={i} style={styles.imagePreviewWrapper}>
+                    <Image source={{ uri: img.uri }} style={styles.imagePreview} />
+                    <TouchableOpacity style={styles.removeImageBtn} onPress={() => handleRemoveImage(i)}>
+                      <X size={14} color="white" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </ScrollView>
+            )}
+            <View style={styles.inputWrapper}>
+              <TouchableOpacity style={styles.attachBtn} onPress={handleAttachmentPress}>
+                <Plus size={15} color="#999" />
+              </TouchableOpacity>
+              <TextInput 
+                style={styles.input} 
+                value={input} 
+                onChangeText={setInput} 
+                placeholder={`Message ${workspace}...`}
+                placeholderTextColor="#999"
+              />
+            </View>
+          </View>
           <TouchableOpacity style={styles.sendBtn} onPress={handleSend}>
-            <Text style={styles.sendText}>Send</Text>
+            <Send size={20} color="#FAF9F6" />
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -371,6 +473,21 @@ export default function App() {
           <Text style={styles.toastText}>{toast}</Text>
         </View>
       )}
+
+      <Modal visible={showAttachmentMenu} transparent animationType="fade" onRequestClose={() => setShowAttachmentMenu(false)}>
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowAttachmentMenu(false)}>
+          <View style={styles.attachmentMenu}>
+            <TouchableOpacity style={styles.attachmentOption} onPress={handleOpenCamera}>
+              <Camera size={24} color="#8E9775" />
+              <Text style={styles.attachmentOptionText}>Camera</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.attachmentOption} onPress={handleOpenGallery}>
+              <ImageIcon size={24} color="#8E9775" />
+              <Text style={styles.attachmentOptionText}>Photo Library</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -399,10 +516,21 @@ const styles = StyleSheet.create({
   conflictBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 15 },
   conflictBtnText: { color: 'white', fontSize: 12, fontWeight: '500' },
   msgText: { fontSize: 15, fontWeight: '300', color: '#5A5A5A' },
-  inputArea: { flexDirection: 'row', padding: 15, borderTopWidth: 1, borderTopColor: '#E0DED8' },
-  input: { flex: 1, backgroundColor: 'white', borderRadius: 20, paddingHorizontal: 15, height: 40, borderWidth: 1, borderColor: '#E0DED8', color: '#5A5A5A' },
-  sendBtn: { marginLeft: 10, justifyContent: 'center', backgroundColor: '#8E9775', borderRadius: 20, paddingHorizontal: 20 },
-  sendText: { color: '#FAF9F6', fontWeight: '500' },
+  chatImageContainer: { marginBottom: 8 },
+  chatImage: { width: 150, height: 150, borderRadius: 8, marginRight: 8 },
+  inputArea: { flexDirection: 'row', alignItems: 'flex-end', padding: 15, borderTopWidth: 1, borderTopColor: '#E0DED8' },
+  inputContainer: { flex: 1, gap: 8 },
+  inputWrapper: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'white', borderRadius: 20, borderWidth: 1, borderColor: '#E0DED8', paddingLeft: 10, minHeight: 40 },
+  attachBtn: { padding: 6 },
+  input: { flex: 1, backgroundColor: 'transparent', paddingHorizontal: 8, color: '#5A5A5A', fontSize: 15 },
+  sendBtn: { marginLeft: 10, width: 40, height: 40, justifyContent: 'center', alignItems: 'center', backgroundColor: '#8E9775', borderRadius: 20 },
+  imagePreviewContainer: { flexDirection: 'row', marginBottom: 8 },
+  imagePreviewWrapper: { position: 'relative', marginRight: 8 },
+  imagePreview: { width: 60, height: 60, borderRadius: 8 },
+  removeImageBtn: { position: 'absolute', top: -6, right: -6, backgroundColor: '#5A5A5A', borderRadius: 10, padding: 2 },
+  attachmentMenu: { position: 'absolute', bottom: 80, left: 15, backgroundColor: 'white', borderRadius: 12, padding: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 4, elevation: 5 },
+  attachmentOption: { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 8 },
+  attachmentOptionText: { marginLeft: 10, color: '#5A5A5A', fontSize: 16 },
   modalOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
   modalContent: { backgroundColor: '#FAF9F6', borderRadius: 15, padding: 20, width: '80%', maxWidth: 300 },
   modalTitle: { fontSize: 18, fontWeight: '600', color: '#5A5A5A', marginBottom: 15, textAlign: 'center' },
