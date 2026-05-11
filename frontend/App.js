@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView, SafeAreaView, Alert, Platform, Linking, KeyboardAvoidingView, Platform as RNPlatform } from 'react-native';
 import axios from 'axios';
 
-const API_URL = "http://192.168.85.115:8000/process";
+const API_URL = "http://192.168.0.89:8000/process";
 
 const setAndroidAlarm = (time, title) => {
   if (Platform.OS !== 'android') return;
