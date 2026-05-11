@@ -21,8 +21,6 @@ const setAndroidAlarm = (time, title) => {
   }
 };
 
-const workspaces = ['Uni', 'Internship', 'Home'];
-
 const initialMessages = {
   'Uni': [{ role: 'bot', text: "Hello! I'm ClockAI. You're in Uni workspace. What would you like to schedule?" }],
   'Internship': [{ role: 'bot', text: "Hello! I'm ClockAI. You're in Internship workspace. What would you like to schedule?" }],
@@ -33,6 +31,9 @@ export default function App() {
   const [input, setInput] = useState('');
   const [workspace, setWorkspace] = useState('Uni');
   const [messages, setMessages] = useState(initialMessages);
+  const [workspaces, setWorkspaces] = useState(['Uni', 'Internship', 'Home']);
+  const [showAddWorkspace, setShowAddWorkspace] = useState(false);
+  const [newWorkspaceName, setNewWorkspaceName] = useState('');
 
   const currentMessages = messages[workspace];
 
@@ -54,6 +55,28 @@ export default function App() {
       setWorkspace(newWorkspace);
       setInput('');
     }
+  };
+
+  const handleAddWorkspace = () => {
+    const trimmedName = newWorkspaceName.trim();
+    if (!trimmedName) {
+      setShowAddWorkspace(false);
+      setNewWorkspaceName('');
+      return;
+    }
+    if (workspaces.includes(trimmedName)) {
+      setNewWorkspaceName('');
+      setShowAddWorkspace(false);
+      return;
+    }
+    setWorkspaces(prev => [...prev, trimmedName]);
+    setMessages(prev => ({
+      ...prev,
+      [trimmedName]: [{ role: 'bot', text: `Switched to ${trimmedName} workspace. What would you like to schedule?` }]
+    }));
+    setWorkspace(trimmedName);
+    setNewWorkspaceName('');
+    setShowAddWorkspace(false);
   };
 
   const handleSend = async () => {
@@ -199,17 +222,22 @@ export default function App() {
         </View>
 
         <View style={styles.workspaceSelector}>
-          {workspaces.map((ws) => (
-            <TouchableOpacity
-              key={ws}
-              style={[styles.workspaceBtn, workspace === ws && styles.workspaceBtnActive]}
-              onPress={() => handleWorkspaceChange(ws)}
-            >
-              <Text style={[styles.workspaceBtnText, workspace === ws && styles.workspaceBtnTextActive]}>
-                {ws}
-              </Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.workspaceScrollContent}>
+            {workspaces.map((ws) => (
+              <TouchableOpacity
+                key={ws}
+                style={[styles.workspaceBtn, workspace === ws && styles.workspaceBtnActive]}
+                onPress={() => handleWorkspaceChange(ws)}
+              >
+                <Text style={[styles.workspaceBtnText, workspace === ws && styles.workspaceBtnTextActive]}>
+                  {ws}
+                </Text>
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity style={styles.addWorkspaceBtn} onPress={() => setShowAddWorkspace(true)}>
+              <Text style={styles.addWorkspaceBtnText}>+</Text>
             </TouchableOpacity>
-          ))}
+          </ScrollView>
         </View>
 
         <ScrollView style={styles.chatBox} keyboardShouldPersistTaps="handled">
@@ -253,6 +281,30 @@ export default function App() {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+
+      {showAddWorkspace && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>New Workspace</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Enter workspace name"
+              placeholderTextColor="#999"
+              value={newWorkspaceName}
+              onChangeText={setNewWorkspaceName}
+              autoFocus
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => { setShowAddWorkspace(false); setNewWorkspaceName(''); }}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalCreateBtn} onPress={handleAddWorkspace}>
+                <Text style={styles.modalCreateText}>Create</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -264,11 +316,14 @@ const styles = StyleSheet.create({
   headerTitle: { color: '#5A5A5A', fontSize: 22, fontWeight: '300', letterSpacing: 3 },
   newChatBtn: { backgroundColor: '#8E9775', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 15 },
   newChatText: { color: '#FAF9F6', fontSize: 12, fontWeight: '600' },
-  workspaceSelector: { flexDirection: 'row', justifyContent: 'center', paddingVertical: 12, gap: 10 },
+  workspaceSelector: { paddingVertical: 12 },
+  workspaceScrollContent: { justifyContent: 'center', gap: 10, paddingHorizontal: 15 },
   workspaceBtn: { paddingHorizontal: 20, paddingVertical: 8, borderRadius: 20, backgroundColor: '#E8E6E1' },
   workspaceBtnActive: { backgroundColor: '#8E9775' },
   workspaceBtnText: { color: '#8E9775', fontWeight: '500', fontSize: 14 },
   workspaceBtnTextActive: { color: '#FAF9F6' },
+  addWorkspaceBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: '#D4D2CD', alignItems: 'center', justifyContent: 'center' },
+  addWorkspaceBtnText: { color: '#8E9775', fontWeight: '600', fontSize: 16, lineHeight: 18 },
   chatBox: { flex: 1, padding: 15 },
   msgBubble: { padding: 12, borderRadius: 15, marginBottom: 10, maxWidth: '80%' },
   userBubble: { alignSelf: 'flex-end', backgroundColor: '#8E9775' },
@@ -281,5 +336,14 @@ const styles = StyleSheet.create({
   inputArea: { flexDirection: 'row', padding: 15, borderTopWidth: 1, borderTopColor: '#E0DED8' },
   input: { flex: 1, backgroundColor: 'white', borderRadius: 20, paddingHorizontal: 15, height: 40, borderWidth: 1, borderColor: '#E0DED8', color: '#5A5A5A' },
   sendBtn: { marginLeft: 10, justifyContent: 'center', backgroundColor: '#8E9775', borderRadius: 20, paddingHorizontal: 20 },
-  sendText: { color: '#FAF9F6', fontWeight: '500' }
+  sendText: { color: '#FAF9F6', fontWeight: '500' },
+  modalOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
+  modalContent: { backgroundColor: '#FAF9F6', borderRadius: 15, padding: 20, width: '80%', maxWidth: 300 },
+  modalTitle: { fontSize: 18, fontWeight: '600', color: '#5A5A5A', marginBottom: 15, textAlign: 'center' },
+  modalInput: { backgroundColor: 'white', borderRadius: 10, paddingHorizontal: 15, paddingVertical: 12, borderWidth: 1, borderColor: '#E0DED8', color: '#5A5A5A', marginBottom: 15 },
+  modalButtons: { flexDirection: 'row', justifyContent: 'space-between', gap: 10 },
+  modalCancelBtn: { flex: 1, paddingVertical: 12, borderRadius: 10, backgroundColor: '#E8E6E1', alignItems: 'center' },
+  modalCancelText: { color: '#5A5A5A', fontWeight: '500' },
+  modalCreateBtn: { flex: 1, paddingVertical: 12, borderRadius: 10, backgroundColor: '#8E9775', alignItems: 'center' },
+  modalCreateText: { color: '#FAF9F6', fontWeight: '600' }
 });
